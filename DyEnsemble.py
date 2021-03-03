@@ -73,23 +73,20 @@ class DyEnsemble:
         self.particles = self.t_model(self.particles)
 
     def __update(self, z):
-        self.pm = self.pm ** self.alpha
-        self.pm /= np.sum(self.pm)
         probs = np.zeros((self.m_model_num, self.n_particle))
         for i in range(self.m_model_num):
             z_ = self.m_models[i](self.particles)
             probs[i] = self.m_models[i].prob(z, z_)
-            # print(probs[i].shape, np.max(probs[i]))
-        # print(probs.shape)
-        final_prob = np.sum(probs * self.weights, axis=1)
-        final_prob /= np.sum(final_prob)
-        # print(final_prob)
-        # exit()
-        self.pm *= final_prob
+        # update model probability
+        self.pm = self.pm ** self.alpha
+        self.pm /= np.sum(self.pm)
+        self.pm *= np.sum(self.weights * probs, axis=1)
         if np.sum(self.pm) < 1e-300:
             self.pm[self.pm==0] = 1e-300
         self.pm /= np.sum(self.pm)
-        self.weights *= np.average(probs, axis=0, weights=self.pm)
+        # update particle weights
+        all_weights = self.weights * probs
+        self.weights = self.pm @ all_weights
         self.weights /= np.sum(self.weights)
 
     def __estimate(self):
